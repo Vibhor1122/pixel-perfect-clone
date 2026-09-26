@@ -9,7 +9,7 @@ import {
 import { APP_NAME } from "@/lib/mock-data";
 import { useRole } from "@/lib/role-context";
 
-export const Route = createFileRoute("/attendance/mark")({
+export const Route = createFileRoute("/marks-attendance")({
   head: () => ({
     meta: [
       { title: `Mark Attendance — ${APP_NAME}` },

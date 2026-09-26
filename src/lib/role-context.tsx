@@ -1,32 +1,90 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import type { User } from "@supabase/supabase-js";
 import type { Role } from "./mock-data";
+import { supabase } from "./supabase";
 
 type RoleContextValue = {
-  role: Role;
-  setRole: (role: Role) => void;
+  role: Role | null;
+  user: User | null;
+  loading: boolean;
+  refreshRole: () => Promise<void>;
 };
 
 const RoleContext = createContext<RoleContextValue>({
-  role: "student",
-  setRole: () => {},
+  role: null,
+  user: null,
+  loading: true,
+  refreshRole: async () => {},
 });
 
-const STORAGE_KEY = "kestrel.role";
-
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRoleState] = useState<Role>("student");
+  const [role, setRole] = useState<Role | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function loadUserAndRole() {
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setUser(user);
+
+    if (!user) {
+      setRole(null);
+      setLoading(false);
+      return;
+    }
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (error || !profile) {
+      console.error("Could not load user role:", error);
+      setRole(null);
+    } else {
+      setRole(profile.role as Role);
+    }
+
+    setLoading(false);
+  }
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY) as Role | null;
-    if (stored) setRoleState(stored);
+    loadUserAndRole();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadUserAndRole();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const setRole = (next: Role) => {
-    setRoleState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
-  };
-
-  return <RoleContext.Provider value={{ role, setRole }}>{children}</RoleContext.Provider>;
+  return (
+    <RoleContext.Provider
+      value={{
+        role,
+        user,
+        loading,
+        refreshRole: loadUserAndRole,
+      }}
+    >
+      {children}
+    </RoleContext.Provider>
+  );
 }
 
 export function useRole() {

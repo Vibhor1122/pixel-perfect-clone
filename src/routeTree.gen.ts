@@ -10,21 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminCreateUserRouteImport } from './routes/admin-create-user'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as MarksAttendanceRouteImport } from './routes/marks-attendance'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SubjectsRouteImport } from './routes/subjects'
 import { Route as TimetableRouteImport } from './routes/timetable'
-import { Route as AttendanceMarkRouteImport } from './routes/attendance/mark'
 import { Route as DayDateRouteImport } from './routes/day.$date'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCreateUserRoute = AdminCreateUserRouteImport.update({
+  id: '/admin-create-user',
+  path: '/admin-create-user',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnnouncementsRoute = AnnouncementsRouteImport.update({
@@ -57,6 +69,11 @@ const HomeRoute = HomeRouteImport.update({
   path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarksAttendanceRoute = MarksAttendanceRouteImport.update({
+  id: '/marks-attendance',
+  path: '/marks-attendance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -72,11 +89,6 @@ const TimetableRoute = TimetableRouteImport.update({
   path: '/timetable',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AttendanceMarkRoute = AttendanceMarkRouteImport.update({
-  id: '/mark',
-  path: '/mark',
-  getParentRoute: () => AttendanceRoute,
-} as any)
 const DayDateRoute = DayDateRouteImport.update({
   id: '/day/$date',
   path: '/day/$date',
@@ -85,100 +97,115 @@ const DayDateRoute = DayDateRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/admin-create-user': typeof AdminCreateUserRoute
   '/announcements': typeof AnnouncementsRoute
-  '/attendance': typeof AttendanceRouteWithChildren
+  '/attendance': typeof AttendanceRoute
   '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/home': typeof HomeRoute
+  '/marks-attendance': typeof MarksAttendanceRoute
   '/register': typeof RegisterRoute
   '/subjects': typeof SubjectsRoute
   '/timetable': typeof TimetableRoute
-  '/attendance/mark': typeof AttendanceMarkRoute
   '/day/$date': typeof DayDateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/admin-create-user': typeof AdminCreateUserRoute
   '/announcements': typeof AnnouncementsRoute
-  '/attendance': typeof AttendanceRouteWithChildren
+  '/attendance': typeof AttendanceRoute
   '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/home': typeof HomeRoute
+  '/marks-attendance': typeof MarksAttendanceRoute
   '/register': typeof RegisterRoute
   '/subjects': typeof SubjectsRoute
   '/timetable': typeof TimetableRoute
-  '/attendance/mark': typeof AttendanceMarkRoute
   '/day/$date': typeof DayDateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/admin-create-user': typeof AdminCreateUserRoute
   '/announcements': typeof AnnouncementsRoute
-  '/attendance': typeof AttendanceRouteWithChildren
+  '/attendance': typeof AttendanceRoute
   '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/home': typeof HomeRoute
+  '/marks-attendance': typeof MarksAttendanceRoute
   '/register': typeof RegisterRoute
   '/subjects': typeof SubjectsRoute
   '/timetable': typeof TimetableRoute
-  '/attendance/mark': typeof AttendanceMarkRoute
   '/day/$date': typeof DayDateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
+    | '/admin-create-user'
     | '/announcements'
     | '/attendance'
     | '/calendar'
     | '/chat'
     | '/forgot-password'
     | '/home'
+    | '/marks-attendance'
     | '/register'
     | '/subjects'
     | '/timetable'
-    | '/attendance/mark'
     | '/day/$date'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
+    | '/admin-create-user'
     | '/announcements'
     | '/attendance'
     | '/calendar'
     | '/chat'
     | '/forgot-password'
     | '/home'
+    | '/marks-attendance'
     | '/register'
     | '/subjects'
     | '/timetable'
-    | '/attendance/mark'
     | '/day/$date'
   id:
     | '__root__'
     | '/'
+    | '/admin'
+    | '/admin-create-user'
     | '/announcements'
     | '/attendance'
     | '/calendar'
     | '/chat'
     | '/forgot-password'
     | '/home'
+    | '/marks-attendance'
     | '/register'
     | '/subjects'
     | '/timetable'
-    | '/attendance/mark'
     | '/day/$date'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  AdminCreateUserRoute: typeof AdminCreateUserRoute
   AnnouncementsRoute: typeof AnnouncementsRoute
-  AttendanceRoute: typeof AttendanceRouteWithChildren
+  AttendanceRoute: typeof AttendanceRoute
   CalendarRoute: typeof CalendarRoute
   ChatRoute: typeof ChatRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HomeRoute: typeof HomeRoute
+  MarksAttendanceRoute: typeof MarksAttendanceRoute
   RegisterRoute: typeof RegisterRoute
   SubjectsRoute: typeof SubjectsRoute
   TimetableRoute: typeof TimetableRoute
@@ -192,6 +219,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-create-user': {
+      id: '/admin-create-user'
+      path: '/admin-create-user'
+      fullPath: '/admin-create-user'
+      preLoaderRoute: typeof AdminCreateUserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/announcements': {
@@ -236,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marks-attendance': {
+      id: '/marks-attendance'
+      path: '/marks-attendance'
+      fullPath: '/marks-attendance'
+      preLoaderRoute: typeof MarksAttendanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -257,13 +305,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TimetableRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/attendance/mark': {
-      id: '/attendance/mark'
-      path: '/mark'
-      fullPath: '/attendance/mark'
-      preLoaderRoute: typeof AttendanceMarkRouteImport
-      parentRoute: typeof AttendanceRoute
-    }
     '/day/$date': {
       id: '/day/$date'
       path: '/day/$date'
@@ -274,26 +315,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AttendanceRouteChildren {
-  AttendanceMarkRoute: typeof AttendanceMarkRoute
-}
-
-const AttendanceRouteChildren: AttendanceRouteChildren = {
-  AttendanceMarkRoute: AttendanceMarkRoute,
-}
-
-const AttendanceRouteWithChildren = AttendanceRoute._addFileChildren(
-  AttendanceRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  AdminCreateUserRoute: AdminCreateUserRoute,
   AnnouncementsRoute: AnnouncementsRoute,
-  AttendanceRoute: AttendanceRouteWithChildren,
+  AttendanceRoute: AttendanceRoute,
   CalendarRoute: CalendarRoute,
   ChatRoute: ChatRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   HomeRoute: HomeRoute,
+  MarksAttendanceRoute: MarksAttendanceRoute,
   RegisterRoute: RegisterRoute,
   SubjectsRoute: SubjectsRoute,
   TimetableRoute: TimetableRoute,

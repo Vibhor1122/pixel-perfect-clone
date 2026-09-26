@@ -5,7 +5,7 @@ import { useRole } from "@/lib/role-context";
 
 type NavItem = { label: string; to: string };
 
-function navItems(role: string): NavItem[] {
+function navItems(role: string | null): NavItem[] {
   const items: NavItem[] = [
     { label: "Home", to: "/home" },
     { label: "Calendar", to: "/calendar" },
@@ -15,7 +15,7 @@ function navItems(role: string): NavItem[] {
   ];
   if (role !== "teacher") items.push({ label: "Class Chat", to: "/chat" });
   items.push({ label: "Announcements", to: "/announcements" });
-  if (role === "cr") items.push({ label: "Mark Attendance", to: "/attendance/mark" });
+  if (role === "cr") items.push({ label: "Mark Attendance", to: "/marks-attendance" });
   if (role === "admin") items.push({ label: "Admin Dashboard", to: "/admin" });
   items.push({ label: "Help & Support", to: "/help" });
   items.push({ label: "Settings", to: "/settings" });
@@ -34,7 +34,7 @@ export function AppShell({
   back?: { to: string; label: string };
 }) {
   const [open, setOpen] = useState(false);
-  const { role } = useRole();
+  const { role, loading } = useRole();
   const navigate = useNavigate();
 
   return (
@@ -102,7 +102,7 @@ export function AppShell({
             <div className="px-5 pb-4">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent ring-1 ring-accent/20">
                 <span className="size-1.5 shrink-0 rounded-full bg-accent" />
-                {ROLE_LABELS[role]} role
+                {loading ? "Loading..." : role ? `${ROLE_LABELS[role]} role` : "No role"}
               </span>
             </div>
             <nav className="flex-1 overflow-y-auto px-3">

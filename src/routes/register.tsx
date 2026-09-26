@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { APP_NAME, COURSES, SECTIONS, SEMESTERS } from "@/lib/mock-data";
 import { Field, inputClass, PrimaryButton } from "@/components/Field";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -8,12 +10,8 @@ export const Route = createFileRoute("/register")({
       { title: `Create student account — ${APP_NAME}` },
       {
         name: "description",
-        content: "Students can register with their roll number, course, semester and section.",
-      },
-      { property: "og:title", content: `Create student account — ${APP_NAME}` },
-      {
-        property: "og:description",
-        content: "Students can register with their roll number, course, semester and section.",
+        content:
+          "Students can register with their roll number, course, semester and section.",
       },
     ],
   }),
@@ -22,6 +20,80 @@ export const Route = createFileRoute("/register")({
 
 function RegisterPage() {
   const navigate = useNavigate();
+
+  const [fullName, setFullName] = useState("");
+  const [rollNumber, setRollNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [course, setCourse] = useState(COURSES[0]);
+  const [semester, setSemester] = useState("5");
+  const [section, setSection] = useState("B");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    setError("");
+    setMessage("");
+
+    if (!fullName.trim() || !rollNumber.trim() || !email.trim()) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+  email: email.trim(),
+  password,
+  options: {
+    data: {
+      full_name: fullName.trim(),
+      college_id: rollNumber.trim(),
+      course,
+      semester: Number(semester),
+      section,
+    },
+  },
+});
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (!data.user) {
+      setError("Account could not be created.");
+      setLoading(false);
+      return;
+    }
+
+
+    setMessage(
+      "Account created successfully. Check your email if verification is required."
+    );
+
+    setLoading(false);
+
+    setTimeout(() => {
+      navigate({ to: "/" });
+    }, 1500);
+  }
 
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[430px] overflow-hidden bg-background px-5 py-8 text-foreground">
@@ -34,58 +106,124 @@ function RegisterPage() {
         ← Back to login
       </Link>
 
-      <h1 className="mt-4 font-display text-[24px] font-semibold leading-tight">Create account</h1>
+      <h1 className="mt-4 font-display text-[24px] font-semibold leading-tight">
+        Create account
+      </h1>
+
       <p className="mt-1 text-[12px] text-muted-foreground">
-        Student registration only. Teacher and CR accounts are created by the college admin.
+        For student and teacher accounts, please contact the admin.
       </p>
 
       <form
         className="frost mt-5 space-y-4 rounded-3xl p-5 shadow-frost ring-hairline"
-        onSubmit={(e) => {
-          e.preventDefault();
-          navigate({ to: "/home" });
-        }}
+        onSubmit={handleRegister}
       >
         <Field label="Full name">
-          <input className={inputClass} placeholder="Aarav Mehta" />
+          <input
+            className={inputClass}
+            placeholder="Aarav Mehta"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+          />
         </Field>
+
         <Field label="Roll number">
-          <input className={inputClass} placeholder="CS21B001" />
+          <input
+            className={inputClass}
+            placeholder="CS21B001"
+            value={rollNumber}
+            onChange={(e) => setRollNumber(e.target.value)}
+            required
+          />
         </Field>
+
         <Field label="College email">
-          <input type="email" className={inputClass} placeholder="aarav.mehta@kestrel.edu" />
+          <input
+            type="email"
+            className={inputClass}
+            placeholder="aarav.mehta@college.edu"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </Field>
+
         <Field label="Course">
-          <select className={inputClass} defaultValue={COURSES[0]}>
+          <select
+            className={inputClass}
+            value={course}
+            onChange={(e) => setCourse(e.target.value)}
+          >
             {COURSES.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
         </Field>
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Semester">
-            <select className={inputClass} defaultValue="5">
+            <select
+              className={inputClass}
+              value={semester}
+              onChange={(e) => setSemester(e.target.value)}
+            >
               {SEMESTERS.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
           </Field>
+
           <Field label="Section">
-            <select className={inputClass} defaultValue="B">
+            <select
+              className={inputClass}
+              value={section}
+              onChange={(e) => setSection(e.target.value)}
+            >
               {SECTIONS.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
           </Field>
         </div>
+
         <Field label="Password">
-          <input type="password" className={inputClass} placeholder="••••••••" />
-        </Field>
-        <Field label="Confirm password">
-          <input type="password" className={inputClass} placeholder="••••••••" />
+          <input
+            type="password"
+            className={inputClass}
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </Field>
 
-        <PrimaryButton type="submit">Create Account</PrimaryButton>
+        <Field label="Confirm password">
+          <input
+            type="password"
+            className={inputClass}
+            placeholder="••••••••"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+        </Field>
+
+        {error && (
+          <div className="rounded-xl bg-destructive/10 px-3 py-2.5 text-[12px] text-destructive">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="rounded-xl bg-primary/10 px-3 py-2.5 text-[12px] text-primary">
+            {message}
+          </div>
+        )}
+
+        <PrimaryButton type="submit" disabled={loading}>
+          {loading ? "Creating Account..." : "Create Account"}
+        </PrimaryButton>
       </form>
     </div>
   );
