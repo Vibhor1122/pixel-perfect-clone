@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell, Panel } from "@/components/AppShell";
 import { Field, inputClass, PrimaryButton } from "@/components/Field";
-import { COURSES, SECTIONS, SEMESTERS } from "@/lib/mock-data";
+import { COURSES, SEMESTERS } from "@/lib/mock-data";
 import { useRole } from "@/lib/role-context";
 import { supabase } from "@/lib/supabase";
 
@@ -24,7 +24,7 @@ function AdminCreateUserPage() {
 
   const [course, setCourse] = useState(COURSES[0]);
   const [semester, setSemester] = useState("5");
-  const [section, setSection] = useState("B");
+  
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -102,10 +102,7 @@ function AdminCreateUserPage() {
               ? Number(semester)
               : null,
 
-          section:
-            accountRole === "student" || accountRole === "cr"
-              ? section
-              : null,
+        
         },
       });
 
@@ -246,47 +243,32 @@ function AdminCreateUserPage() {
         </Field>
 
         {needsClass && (
-          <>
-            <Field label="Course">
-              <select
-                className={inputClass}
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
-              >
-                {COURSES.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </Field>
+  <>
+    <Field label="Course">
+      <select
+        className={inputClass}
+        value={course}
+        onChange={(e) => setCourse(e.target.value)}
+      >
+        {COURSES.map((item) => (
+          <option key={item}>{item}</option>
+        ))}
+      </select>
+    </Field>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Semester">
-                <select
-                  className={inputClass}
-                  value={semester}
-                  onChange={(e) => setSemester(e.target.value)}
-                >
-                  {SEMESTERS.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Section">
-                <select
-                  className={inputClass}
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                >
-                  {SECTIONS.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          </>
-        )}
-
+    <Field label="Semester">
+      <select
+        className={inputClass}
+        value={semester}
+        onChange={(e) => setSemester(e.target.value)}
+      >
+        {SEMESTERS.map((item) => (
+          <option key={item}>{item}</option>
+        ))}
+      </select>
+    </Field>
+  </>
+)}
         <Field label="Temporary password">
           <input
             type="password"

@@ -126,11 +126,24 @@ function AdminPage() {
 
         <div className="space-y-3">
           <SoftCard>
-            <h3 className="text-[14px] font-medium">Subjects</h3>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Create subjects and assign teachers.
-            </p>
-          </SoftCard>
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <h3 className="text-[14px] font-medium">Subjects</h3>
+
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Create subjects and assign teachers.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => navigate({ to: "/admin-subjects" })}
+      className="shrink-0 rounded-xl bg-primary px-3 py-2 text-[11px] font-medium text-primary-foreground"
+    >
+      Manage
+    </button>
+  </div>
+</SoftCard>
 
           <SoftCard>
             <h3 className="text-[14px] font-medium">Timetable</h3>

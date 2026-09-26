@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AppShell,
   Panel,
@@ -8,6 +8,7 @@ import {
 } from "@/components/AppShell";
 import { APP_NAME } from "@/lib/mock-data";
 import { useRole } from "@/lib/role-context";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/marks-attendance")({
   head: () => ({
@@ -22,45 +23,154 @@ export const Route = createFileRoute("/marks-attendance")({
   component: MarkAttendancePage,
 });
 
-const subjects = [
-  "Engineering Mathematics",
-  "Python Programming",
-  "Engineering Physics",
-  "Engineering Chemistry",
-  "Communication Skills",
-];
 
-const students = [
-  { id: 1, roll: "01", name: "Aarav Mehta" },
-  { id: 2, roll: "02", name: "Aditi Sharma" },
-  { id: 3, roll: "03", name: "Arjun Verma" },
-  { id: 4, roll: "04", name: "Ishita Gupta" },
-  { id: 5, roll: "05", name: "Kabir Singh" },
-  { id: 6, roll: "06", name: "Meera Kapoor" },
-  { id: 7, roll: "07", name: "Rohan Yadav" },
-  { id: 8, roll: "08", name: "Sanya Jain" },
-];
 
 type AttendanceStatus = "present" | "absent";
 
+type Student = {
+  id: string;
+  college_id: string | null;
+  full_name: string | null;
+};
+
+type CrProfile = {
+  course: string | null;
+  semester: number | null;
+};
+
 function MarkAttendancePage() {
-  const { role } = useRole();
+  const { role, loading: roleLoading } = useRole();
   const navigate = useNavigate();
 
-  const [subject, setSubject] = useState(subjects[0]);
+  const [subjects, setSubjects] = useState<string[]>([]);
+const [subject, setSubject] = useState("");
   const [date, setDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
-  const [attendance, setAttendance] = useState<
-    Record<number, AttendanceStatus>
-  >(
-    Object.fromEntries(
-      students.map((student) => [student.id, "present"])
-    ) as Record<number, AttendanceStatus>
-  );
+  const [students, setStudents] = useState<Student[]>([]);
+  const [crProfile, setCrProfile] = useState<CrProfile | null>(null);
 
+  const [attendance, setAttendance] = useState<
+    Record<string, AttendanceStatus>
+  >({});
+
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!roleLoading && role === "cr") {
+      void loadClass();
+    }
+  }, [role, roleLoading]);
+
+  async function loadClass() {
+    setLoadingStudents(true);
+    setError("");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setError("Could not identify the logged-in CR.");
+      setLoadingStudents(false);
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("course, semester")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      setError("Could not load your class information.");
+      setLoadingStudents(false);
+      return;
+    }
+
+    setCrProfile(profile);
+
+    if (!profile.course || !profile.semester) {
+      setError(
+        "Your CR account does not have complete class information."
+      );
+      setLoadingStudents(false);
+      return;
+    }
+    // LOAD SUBJECTS FOR THIS CR'S COURSE AND SEMESTER
+const { data: classSubjects, error: subjectsError } =
+  await supabase
+    .from("subjects")
+    .select("name")
+    .eq("course", profile.course)
+    .eq("semester", profile.semester)
+    .order("name", { ascending: true });
+
+if (subjectsError) {
+  setError(subjectsError.message);
+  setLoadingStudents(false);
+  return;
+}
+
+const loadedSubjects = (classSubjects ?? []).map(
+  (item) => item.name
+);
+
+setSubjects(loadedSubjects);
+
+if (loadedSubjects.length > 0) {
+  setSubject(loadedSubjects[0]);
+} else {
+  setSubject("");
+}
+
+    const { data: classStudents, error: studentsError } =
+      await supabase
+        .from("profiles")
+        .select("id, college_id, full_name")
+        .eq("role", "student")
+        .eq("course", profile.course)
+        .eq("semester", profile.semester)
+        .order("college_id", { ascending: true });
+
+    if (studentsError) {
+      setError(studentsError.message);
+      setLoadingStudents(false);
+      return;
+    }
+
+    const loadedStudents = classStudents ?? [];
+
+    setStudents(loadedStudents);
+
+    setAttendance(
+      Object.fromEntries(
+        loadedStudents.map((student) => [
+          student.id,
+          "present",
+        ])
+      ) as Record<string, AttendanceStatus>
+    );
+
+    setLoadingStudents(false);
+  }
+
+  if (roleLoading) {
+    return (
+      <AppShell title="Mark Attendance">
+        <Panel className="text-center">
+          <p className="text-[13px] text-muted-foreground">
+            Checking CR access...
+          </p>
+        </Panel>
+      </AppShell>
+    );
+  }
 
   if (role !== "cr") {
     return (
@@ -92,7 +202,7 @@ function MarkAttendancePage() {
   const absentCount = students.length - presentCount;
 
   function changeStatus(
-    studentId: number,
+    studentId: string,
     status: AttendanceStatus
   ) {
     setAttendance((current) => ({
@@ -101,20 +211,103 @@ function MarkAttendancePage() {
     }));
 
     setSaved(false);
+    setError("");
   }
 
   function markEveryonePresent() {
     setAttendance(
       Object.fromEntries(
-        students.map((student) => [student.id, "present"])
-      ) as Record<number, AttendanceStatus>
+        students.map((student) => [
+          student.id,
+          "present",
+        ])
+      ) as Record<string, AttendanceStatus>
     );
 
     setSaved(false);
+    setError("");
   }
 
-  function saveAttendance() {
+  async function saveAttendance() {
+    setError("");
+    setSaved(false);
+
+    if (!crProfile) {
+      setError("Class information is not available.");
+      return;
+    }
+
+    if (!crProfile.course || !crProfile.semester) {
+      setError("Your CR account has incomplete class information.");
+      return;
+    }
+
+    if (students.length === 0) {
+      setError("There are no students in this class.");
+      return;
+    }
+
+    setSaving(true);
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setError("Your login session could not be verified.");
+      setSaving(false);
+      return;
+    }
+
+    const { data: session, error: sessionError } = await supabase
+      .from("attendance_sessions")
+      .insert({
+        subject,
+        attendance_date: date,
+        course: crProfile.course,
+        semester: crProfile.semester,
+        marked_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (sessionError) {
+      if (sessionError.code === "23505") {
+        setError(
+          "Attendance for this subject and date has already been saved."
+        );
+      } else {
+        setError(sessionError.message);
+      }
+
+      setSaving(false);
+      return;
+    }
+
+    const records = students.map((student) => ({
+      session_id: session.id,
+      student_id: student.id,
+      status: attendance[student.id] ?? "present",
+    }));
+
+    const { error: recordsError } = await supabase
+      .from("attendance_records")
+      .insert(records);
+
+    if (recordsError) {
+      await supabase
+        .from("attendance_sessions")
+        .delete()
+        .eq("id", session.id);
+
+      setError(recordsError.message);
+      setSaving(false);
+      return;
+    }
+
     setSaved(true);
+    setSaving(false);
   }
 
   return (
@@ -125,6 +318,12 @@ function MarkAttendancePage() {
     >
       <section>
         <Panel>
+          {crProfile && (
+            <div className="mb-4 rounded-xl bg-primary/5 px-3 py-2.5 text-[11px] text-muted-foreground ring-hairline">
+              {crProfile.course} · Semester {crProfile.semester}
+            </div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -132,17 +331,25 @@ function MarkAttendancePage() {
               </label>
 
               <select
-                value={subject}
-                onChange={(e) => {
-                  setSubject(e.target.value);
-                  setSaved(false);
-                }}
-                className="w-full rounded-xl bg-card/70 px-3 py-3 text-[13px] outline-none ring-hairline"
-              >
-                {subjects.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
+  value={subject}
+  disabled={subjects.length === 0}
+  onChange={(e) => {
+    setSubject(e.target.value);
+    setSaved(false);
+    setError("");
+  }}
+  className="w-full rounded-xl bg-card/70 px-3 py-3 text-[13px] outline-none ring-hairline disabled:opacity-60"
+>
+  {subjects.length === 0 ? (
+    <option value="">No subjects available</option>
+  ) : (
+    subjects.map((item) => (
+      <option key={item} value={item}>
+        {item}
+      </option>
+    ))
+  )}
+</select>
             </div>
 
             <div>
@@ -156,6 +363,7 @@ function MarkAttendancePage() {
                 onChange={(e) => {
                   setDate(e.target.value);
                   setSaved(false);
+                  setError("");
                 }}
                 className="w-full rounded-xl bg-card/70 px-3 py-3 text-[13px] outline-none ring-hairline"
               />
@@ -167,96 +375,132 @@ function MarkAttendancePage() {
       <section>
         <SectionHeader
           title="Students"
-          meta={`${students.length} students`}
+          meta={
+            loadingStudents
+              ? "Loading..."
+              : `${students.length} students`
+          }
         />
 
-        <div className="mb-3 flex items-center justify-between px-1">
-          <div className="flex gap-3 text-[11px]">
-            <span className="font-medium text-primary">
-              {presentCount} Present
-            </span>
-
-            <span className="text-muted-foreground">
-              {absentCount} Absent
-            </span>
+        {error && (
+          <div className="mb-3 rounded-xl bg-destructive/10 px-3 py-2.5 text-[12px] text-destructive">
+            {error}
           </div>
+        )}
 
+        {!loadingStudents && students.length > 0 && (
+          <div className="mb-3 flex items-center justify-between px-1">
+            <div className="flex gap-3 text-[11px]">
+              <span className="font-medium text-primary">
+                {presentCount} Present
+              </span>
+
+              <span className="text-muted-foreground">
+                {absentCount} Absent
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={markEveryonePresent}
+              className="text-[11px] font-medium text-primary"
+            >
+              All Present
+            </button>
+          </div>
+        )}
+
+        {loadingStudents ? (
+          <Panel className="text-center">
+            <p className="text-[12px] text-muted-foreground">
+              Loading students...
+            </p>
+          </Panel>
+        ) : students.length === 0 ? (
+          <Panel className="text-center">
+            <p className="text-[12px] text-muted-foreground">
+              No students were found in your class.
+            </p>
+          </Panel>
+        ) : (
+          <div className="space-y-2">
+            {students.map((student) => {
+              const status = attendance[student.id];
+              const roll = student.college_id || "—";
+
+              return (
+                <SoftCard
+                  key={student.id}
+                  className="!p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid min-h-9 min-w-9 shrink-0 place-items-center rounded-full bg-primary/10 px-2 text-[10px] font-semibold text-primary">
+                      {roll}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium">
+                        {student.full_name || "Student"}
+                      </p>
+
+                      <p className="text-[10px] text-muted-foreground">
+                        Roll No. {roll}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          changeStatus(student.id, "present")
+                        }
+                        className={`grid size-9 place-items-center rounded-xl text-[12px] font-semibold ring-hairline ${
+                          status === "present"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-card/60 text-muted-foreground"
+                        }`}
+                      >
+                        P
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          changeStatus(student.id, "absent")
+                        }
+                        className={`grid size-9 place-items-center rounded-xl text-[12px] font-semibold ring-hairline ${
+                          status === "absent"
+                            ? "bg-destructive text-white"
+                            : "bg-card/60 text-muted-foreground"
+                        }`}
+                      >
+                        A
+                      </button>
+                    </div>
+                  </div>
+                </SoftCard>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {students.length > 0 && (
+        <section className="sticky bottom-3">
           <button
-            onClick={markEveryonePresent}
-            className="text-[11px] font-medium text-primary"
+            type="button"
+            onClick={saveAttendance}
+            disabled={saving}
+            className="w-full rounded-2xl bg-primary px-4 py-3.5 text-[13px] font-semibold text-primary-foreground shadow-frost disabled:cursor-not-allowed disabled:opacity-60"
           >
-            All Present
+            {saving
+              ? "Saving Attendance..."
+              : saved
+                ? "Attendance Saved ✓"
+                : "Save Attendance"}
           </button>
-        </div>
-
-        <div className="space-y-2">
-          {students.map((student) => {
-            const status = attendance[student.id];
-
-            return (
-              <SoftCard
-                key={student.id}
-                className="!p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
-                    {student.roll}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium">
-                      {student.name}
-                    </p>
-
-                    <p className="text-[10px] text-muted-foreground">
-                      Roll No. {student.roll}
-                    </p>
-                  </div>
-
-                  <div className="flex shrink-0 gap-1.5">
-                    <button
-                      onClick={() =>
-                        changeStatus(student.id, "present")
-                      }
-                      className={`grid size-9 place-items-center rounded-xl text-[12px] font-semibold ring-hairline ${
-                        status === "present"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card/60 text-muted-foreground"
-                      }`}
-                      aria-label={`Mark ${student.name} present`}
-                    >
-                      P
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        changeStatus(student.id, "absent")
-                      }
-                      className={`grid size-9 place-items-center rounded-xl text-[12px] font-semibold ring-hairline ${
-                        status === "absent"
-                          ? "bg-destructive text-white"
-                          : "bg-card/60 text-muted-foreground"
-                      }`}
-                      aria-label={`Mark ${student.name} absent`}
-                    >
-                      A
-                    </button>
-                  </div>
-                </div>
-              </SoftCard>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="sticky bottom-3">
-        <button
-          onClick={saveAttendance}
-          className="w-full rounded-2xl bg-primary px-4 py-3.5 text-[13px] font-semibold text-primary-foreground shadow-frost"
-        >
-          {saved ? "Attendance Saved ✓" : "Save Attendance"}
-        </button>
-      </section>
+        </section>
+      )}
     </AppShell>
   );
 }

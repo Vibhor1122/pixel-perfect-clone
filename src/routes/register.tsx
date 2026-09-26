@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { APP_NAME, COURSES, SECTIONS, SEMESTERS } from "@/lib/mock-data";
+import { APP_NAME, COURSES, SEMESTERS } from "@/lib/mock-data";
 import { Field, inputClass, PrimaryButton } from "@/components/Field";
 import { supabase } from "@/lib/supabase";
 
@@ -11,7 +11,7 @@ export const Route = createFileRoute("/register")({
       {
         name: "description",
         content:
-          "Students can register with their roll number, course, semester and section.",
+          "Students can register with their roll number, course and semester.",
       },
     ],
   }),
@@ -26,7 +26,6 @@ function RegisterPage() {
   const [email, setEmail] = useState("");
   const [course, setCourse] = useState(COURSES[0]);
   const [semester, setSemester] = useState("5");
-  const [section, setSection] = useState("B");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -58,18 +57,17 @@ function RegisterPage() {
     setLoading(true);
 
     const { data, error: signUpError } = await supabase.auth.signUp({
-  email: email.trim(),
-  password,
-  options: {
-    data: {
-      full_name: fullName.trim(),
-      college_id: rollNumber.trim(),
-      course,
-      semester: Number(semester),
-      section,
-    },
-  },
-});
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+          college_id: rollNumber.trim(),
+          course,
+          semester: Number(semester),
+        },
+      },
+    });
 
     if (signUpError) {
       setError(signUpError.message);
@@ -82,7 +80,6 @@ function RegisterPage() {
       setLoading(false);
       return;
     }
-
 
     setMessage(
       "Account created successfully. Check your email if verification is required."
@@ -111,7 +108,8 @@ function RegisterPage() {
       </h1>
 
       <p className="mt-1 text-[12px] text-muted-foreground">
-        For student and teacher accounts, please contact the admin.
+        Students can create an account here. For teacher and CR accounts,
+        please contact the admin.
       </p>
 
       <form
@@ -161,31 +159,17 @@ function RegisterPage() {
           </select>
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Semester">
-            <select
-              className={inputClass}
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
-            >
-              {SEMESTERS.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Section">
-            <select
-              className={inputClass}
-              value={section}
-              onChange={(e) => setSection(e.target.value)}
-            >
-              {SECTIONS.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
+        <Field label="Semester">
+          <select
+            className={inputClass}
+            value={semester}
+            onChange={(e) => setSemester(e.target.value)}
+          >
+            {SEMESTERS.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </Field>
 
         <Field label="Password">
           <input
