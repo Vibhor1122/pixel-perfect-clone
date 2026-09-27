@@ -8,6 +8,8 @@ import {
 } from "@/components/AppShell";
 import { APP_NAME } from "@/lib/mock-data";
 import { supabase } from "@/lib/supabase";
+const ATTENDANCE_API_URL =
+  import.meta.env["VITE_ATTENDANCE_API_URL"];
 
 export const Route = createFileRoute("/attendance")({
   head: () => ({
@@ -46,41 +48,130 @@ function AttendancePage() {
     void loadAttendance();
   }, []);
 
-  async function loadAttendance() {
-    setLoading(true);
-    setError("");
+async function loadAttendance() {
+  setLoading(true);
+  setError("");
 
-    const { data: subjectData, error: subjectError } =
-      await supabase.rpc("get_my_attendance_summary");
-
-    if (subjectError) {
-      setError(subjectError.message);
-      setLoading(false);
-      return;
+  try {
+    if (!ATTENDANCE_API_URL) {
+      throw new Error("Attendance API is not configured.");
     }
 
-    const { data: overallData, error: overallError } =
-      await supabase.rpc("get_my_overall_attendance");
+    // Find the logged-in student
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (overallError) {
-      setError(overallError.message);
-      setLoading(false);
-      return;
+    if (userError || !user) {
+      throw new Error("Could not identify the logged-in student.");
     }
 
-    setAttendance(
-      (subjectData ?? []) as SubjectAttendance[]
+    // Get the student's college ID
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("college_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new Error("Could not load your student profile.");
+    }
+
+    const studentId = profile.college_id || user.id;
+
+    // Read attendance from Google Sheet
+    const response = await fetch(ATTENDANCE_API_URL);
+
+    if (!response.ok) {
+      throw new Error("Could not connect to the attendance sheet.");
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(
+        result.error || "Could not load attendance."
+      );
+    }
+
+    // Keep only this student's attendance
+    const myRecords = (result.records ?? []).filter(
+      (record: {
+        studentId: string;
+      }) => String(record.studentId) === String(studentId)
     );
 
-    setOverall(
-      overallData && overallData.length > 0
-        ? (overallData[0] as OverallAttendance)
-        : null
-    );
+    // Group the student's records by subject
+    const subjectMap = new Map<
+      string,
+      {
+        total: number;
+        present: number;
+      }
+    >();
 
+    for (const record of myRecords) {
+      const subjectName = String(record.subjectName || "Subject");
+
+      const current = subjectMap.get(subjectName) ?? {
+        total: 0,
+        present: 0,
+      };
+
+      current.total += 1;
+
+      if (record.status === "present") {
+        current.present += 1;
+      }
+
+      subjectMap.set(subjectName, current);
+    }
+
+    const subjectAttendance: SubjectAttendance[] =
+      Array.from(subjectMap.entries()).map(
+        ([subjectName, counts]) => ({
+          subject: subjectName,
+          total_classes: counts.total,
+          present_classes: counts.present,
+          percentage:
+            counts.total > 0
+              ? Math.round(
+                  (counts.present / counts.total) * 100
+                )
+              : 0,
+        })
+      );
+
+    const totalClasses = myRecords.length;
+
+    const presentClasses = myRecords.filter(
+      (record: { status: string }) =>
+        record.status === "present"
+    ).length;
+
+    setAttendance(subjectAttendance);
+
+    setOverall({
+      total_classes: totalClasses,
+      present_classes: presentClasses,
+      percentage:
+        totalClasses > 0
+          ? Math.round(
+              (presentClasses / totalClasses) * 100
+            )
+          : 0,
+    });
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Could not load attendance."
+    );
+  } finally {
     setLoading(false);
   }
-
+}
   if (loading) {
     return (
       <AppShell title="Attendance">

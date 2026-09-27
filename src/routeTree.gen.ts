@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminAnnouncementsRouteImport } from './routes/admin-announcements'
 import { Route as AdminCreateUserRouteImport } from './routes/admin-create-user'
 import { Route as AdminSubjectsRouteImport } from './routes/admin-subjects'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
@@ -35,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAnnouncementsRoute = AdminAnnouncementsRouteImport.update({
+  id: '/admin-announcements',
+  path: '/admin-announcements',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminCreateUserRoute = AdminCreateUserRouteImport.update({
@@ -116,6 +122,7 @@ const DayDateRoute = DayDateRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-announcements': typeof AdminAnnouncementsRoute
   '/admin-create-user': typeof AdminCreateUserRoute
   '/admin-subjects': typeof AdminSubjectsRoute
   '/announcements': typeof AnnouncementsRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-announcements': typeof AdminAnnouncementsRoute
   '/admin-create-user': typeof AdminCreateUserRoute
   '/admin-subjects': typeof AdminSubjectsRoute
   '/announcements': typeof AnnouncementsRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-announcements': typeof AdminAnnouncementsRoute
   '/admin-create-user': typeof AdminCreateUserRoute
   '/admin-subjects': typeof AdminSubjectsRoute
   '/announcements': typeof AnnouncementsRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin-announcements'
     | '/admin-create-user'
     | '/admin-subjects'
     | '/announcements'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/admin-announcements'
     | '/admin-create-user'
     | '/admin-subjects'
     | '/announcements'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin-announcements'
     | '/admin-create-user'
     | '/admin-subjects'
     | '/announcements'
@@ -234,6 +246,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AdminAnnouncementsRoute: typeof AdminAnnouncementsRoute
   AdminCreateUserRoute: typeof AdminCreateUserRoute
   AdminSubjectsRoute: typeof AdminSubjectsRoute
   AnnouncementsRoute: typeof AnnouncementsRoute
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-announcements': {
+      id: '/admin-announcements'
+      path: '/admin-announcements'
+      fullPath: '/admin-announcements'
+      preLoaderRoute: typeof AdminAnnouncementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin-create-user': {
@@ -378,6 +398,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AdminAnnouncementsRoute: AdminAnnouncementsRoute,
   AdminCreateUserRoute: AdminCreateUserRoute,
   AdminSubjectsRoute: AdminSubjectsRoute,
   AnnouncementsRoute: AnnouncementsRoute,

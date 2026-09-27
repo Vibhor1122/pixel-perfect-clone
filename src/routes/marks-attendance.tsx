@@ -10,6 +10,10 @@ import { APP_NAME } from "@/lib/mock-data";
 import { useRole } from "@/lib/role-context";
 import { supabase } from "@/lib/supabase";
 
+const ATTENDANCE_API_URL =
+  import.meta.env["VITE_ATTENDANCE_API_URL"];
+  console.log("Attendance API loaded:", Boolean(ATTENDANCE_API_URL));
+
 export const Route = createFileRoute("/marks-attendance")({
   head: () => ({
     meta: [
@@ -42,7 +46,12 @@ function MarkAttendancePage() {
   const { role, loading: roleLoading } = useRole();
   const navigate = useNavigate();
 
-  const [subjects, setSubjects] = useState<string[]>([]);
+ type Subject = {
+  id: string;
+  name: string;
+};
+
+const [subjects, setSubjects] = useState<Subject[]>([]);
 const [subject, setSubject] = useState("");
   const [date, setDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -106,7 +115,7 @@ const [subject, setSubject] = useState("");
 const { data: classSubjects, error: subjectsError } =
   await supabase
     .from("subjects")
-    .select("name")
+    .select("id, name")
     .eq("course", profile.course)
     .eq("semester", profile.semester)
     .order("name", { ascending: true });
@@ -117,14 +126,12 @@ if (subjectsError) {
   return;
 }
 
-const loadedSubjects = (classSubjects ?? []).map(
-  (item) => item.name
-);
+const loadedSubjects = classSubjects ?? [];
 
 setSubjects(loadedSubjects);
 
 if (loadedSubjects.length > 0) {
-  setSubject(loadedSubjects[0]);
+  setSubject(loadedSubjects[0]!.id);
 } else {
   setSubject("");
 }
@@ -228,87 +235,111 @@ if (loadedSubjects.length > 0) {
     setError("");
   }
 
-  async function saveAttendance() {
-    setError("");
-    setSaved(false);
+ async function saveAttendance() {
+  setError("");
+  setSaved(false);
 
-    if (!crProfile) {
-      setError("Class information is not available.");
-      return;
+  if (!crProfile) {
+    setError("Class information is not available.");
+    return;
+  }
+
+  if (!crProfile.course || !crProfile.semester) {
+    setError("Your CR account has incomplete class information.");
+    return;
+  }
+
+  if (!subject) {
+    setError("Please select a subject.");
+    return;
+  }
+
+  if (students.length === 0) {
+    setError("There are no students in this class.");
+    return;
+  }
+
+  if (!ATTENDANCE_API_URL) {
+    setError("Attendance API is not configured.");
+    return;
+  }
+
+  const selectedSubject = subjects.find(
+    (item) => item.id === subject
+  );
+
+  if (!selectedSubject) {
+    setError("Could not identify the selected subject.");
+    return;
+  }
+
+  setSaving(true);
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    setError("Your login session could not be verified.");
+    setSaving(false);
+    return;
+  }
+
+  const records = students.map((student) => ({
+    date,
+    course: crProfile.course,
+    semester: crProfile.semester,
+    subjectId: selectedSubject.id,
+    subjectName: selectedSubject.name,
+    studentId: student.college_id || student.id,
+    studentName: student.full_name || "Student",
+    status: attendance[student.id] ?? "present",
+    markedBy: user.id,
+  }));
+
+ try {
+  console.log("Sending attendance to Google Sheets", records);
+
+  const response = await fetch(ATTENDANCE_API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        records,
+      }),
+    });
+
+    console.log(
+  "Google response received:",
+  response.status,
+  response.url
+);
+
+    if (!response.ok) {
+      throw new Error("Attendance server returned an error.");
     }
 
-    if (!crProfile.course || !crProfile.semester) {
-      setError("Your CR account has incomplete class information.");
-      return;
-    }
+    const result = await response.json();
+    console.log("Google response data:", result);
 
-    if (students.length === 0) {
-      setError("There are no students in this class.");
-      return;
-    }
-
-    setSaving(true);
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      setError("Your login session could not be verified.");
-      setSaving(false);
-      return;
-    }
-
-    const { data: session, error: sessionError } = await supabase
-      .from("attendance_sessions")
-      .insert({
-        subject,
-        attendance_date: date,
-        course: crProfile.course,
-        semester: crProfile.semester,
-        marked_by: user.id,
-      })
-      .select("id")
-      .single();
-
-    if (sessionError) {
-      if (sessionError.code === "23505") {
-        setError(
-          "Attendance for this subject and date has already been saved."
-        );
-      } else {
-        setError(sessionError.message);
-      }
-
-      setSaving(false);
-      return;
-    }
-
-    const records = students.map((student) => ({
-      session_id: session.id,
-      student_id: student.id,
-      status: attendance[student.id] ?? "present",
-    }));
-
-    const { error: recordsError } = await supabase
-      .from("attendance_records")
-      .insert(records);
-
-    if (recordsError) {
-      await supabase
-        .from("attendance_sessions")
-        .delete()
-        .eq("id", session.id);
-
-      setError(recordsError.message);
-      setSaving(false);
-      return;
+    if (!result.success) {
+      throw new Error(
+        result.error || "Could not save attendance."
+      );
     }
 
     setSaved(true);
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Could not save attendance."
+    );
+  } finally {
     setSaving(false);
   }
+}
+
+   
 
   return (
     <AppShell
@@ -343,11 +374,11 @@ if (loadedSubjects.length > 0) {
   {subjects.length === 0 ? (
     <option value="">No subjects available</option>
   ) : (
-    subjects.map((item) => (
-      <option key={item} value={item}>
-        {item}
-      </option>
-    ))
+subjects.map((item) => (
+  <option key={item.id} value={item.id}>
+    {item.name}
+  </option>
+))
   )}
 </select>
             </div>

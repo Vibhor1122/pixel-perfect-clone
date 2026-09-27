@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { APP_NAME } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/chat")({
   head: () => ({
@@ -44,7 +45,33 @@ function ChatPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState(initialMessages);
 
+  const [chatEnabled, setChatEnabled] = useState<boolean | null>(null);
+  const [chatError, setChatError] = useState("");
+
+  useEffect(() => {
+    void loadChatSetting();
+  }, []);
+
+  async function loadChatSetting() {
+    setChatError("");
+
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("id", "class_chat_enabled")
+      .single();
+
+    if (error) {
+      setChatError("Could not check the Class Chat status.");
+      return;
+    }
+
+    setChatEnabled(data.value);
+  }
+
   function sendMessage() {
+    if (!chatEnabled) return;
+
     const text = message.trim();
 
     if (!text) return;
@@ -64,6 +91,38 @@ function ChatPage() {
     ]);
 
     setMessage("");
+  }
+
+  if (chatEnabled === null) {
+    return (
+      <AppShell title="Class Chat" subtitle="Students & CR">
+        <div className="frost-2 rounded-2xl p-5 text-center ring-hairline">
+          <p className="text-[13px] text-muted-foreground">
+            {chatError || "Checking Class Chat status..."}
+          </p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!chatEnabled) {
+    return (
+      <AppShell title="Class Chat" subtitle="Students & CR">
+        <div className="frost-2 rounded-2xl p-6 text-center ring-hairline">
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-destructive/10 text-xl">
+            🔒
+          </div>
+
+          <h2 className="mt-4 text-[15px] font-semibold">
+            Class Chat is disabled
+          </h2>
+
+          <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+            Class Chat has been disabled by the administrator.
+          </p>
+        </div>
+      </AppShell>
+    );
   }
 
   return (

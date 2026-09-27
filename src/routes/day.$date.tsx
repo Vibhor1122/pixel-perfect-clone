@@ -11,7 +11,9 @@ import { formatLong } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
 import { useRole } from "@/lib/role-context";
 import {
-  getGoogleDriveAccessToken,
+  connectGoogleDrive,
+  getCachedGoogleDriveToken,
+  hasGoogleDriveAccess,
   makeDriveFileViewable,
   uploadPdfToGoogleDrive,
 } from "@/lib/google-drive";
@@ -83,6 +85,10 @@ function DayPage() {
 const [uploadingSessionId, setUploadingSessionId] = useState<string | null>(
   null
 );
+const [driveConnected, setDriveConnected] = useState(
+  hasGoogleDriveAccess()
+);
+const [connectingDrive, setConnectingDrive] = useState(false);
 
   const [editingSessionId, setEditingSessionId] = useState<string | null>(
     null
@@ -270,7 +276,25 @@ setLoading(false);
     setError("");
     setSuccess("");
   }
+async function handleConnectGoogleDrive() {
+  setConnectingDrive(true);
+  setError("");
+  setSuccess("");
 
+  try {
+    await connectGoogleDrive();
+    setDriveConnected(true);
+    setSuccess("Google Drive connected.");
+  } catch (connectError) {
+    if (connectError instanceof Error) {
+      setError(connectError.message);
+    } else {
+      setError("Could not connect Google Drive.");
+    }
+  } finally {
+    setConnectingDrive(false);
+  }
+}
   function cancelEditing() {
     setEditingSessionId(null);
     setSummaryText("");
@@ -298,7 +322,13 @@ setLoading(false);
   setSuccess("");
 
   try {
-    const accessToken = await getGoogleDriveAccessToken();
+    const accessToken = getCachedGoogleDriveToken();
+
+if (!accessToken) {
+  throw new Error(
+    "Connect Google Drive before selecting a PDF."
+  );
+}
 
     const uploadedFile = await uploadPdfToGoogleDrive(
       file,
@@ -594,30 +624,43 @@ setLoading(false);
       )}
 
       {role === "cr" ? (
-        <div className="mt-3">
-          <label className="inline-flex cursor-pointer items-center rounded-xl bg-primary/10 px-3 py-2 text-[12px] font-medium text-primary">
-            {uploadingSessionId === session.id
-              ? "Uploading..."
-              : "Upload PDF"}
+  <div className="mt-3">
+    {!driveConnected ? (
+      <button
+        type="button"
+        disabled={connectingDrive}
+        onClick={() => void handleConnectGoogleDrive()}
+        className="rounded-xl bg-primary/10 px-3 py-2 text-[12px] font-medium text-primary disabled:opacity-60"
+      >
+        {connectingDrive
+          ? "Connecting..."
+          : "Connect Google Drive"}
+      </button>
+    ) : (
+      <label className="inline-flex cursor-pointer items-center rounded-xl bg-primary/10 px-3 py-2 text-[12px] font-medium text-primary">
+        {uploadingSessionId === session.id
+          ? "Uploading..."
+          : "Upload PDF"}
 
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              disabled={uploadingSessionId === session.id}
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          disabled={uploadingSessionId === session.id}
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
 
-                if (file) {
-                  void uploadPdf(session.id, file);
-                }
+            if (file) {
+              void uploadPdf(session.id, file);
+            }
 
-                event.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-      ) : null}
+            event.target.value = "";
+          }}
+        />
+      </label>
+    )}
+  </div>
+) : null}
     </>
   ) : role === "cr" ? (
     <p className="mt-2 text-[12px] text-muted-foreground">

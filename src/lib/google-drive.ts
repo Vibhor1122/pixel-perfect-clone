@@ -9,6 +9,7 @@ export const GOOGLE_DRIVE_SCOPE =
 
 type TokenResponse = {
   access_token?: string;
+  expires_in?: number;
   error?: string;
 };
 
@@ -32,31 +33,68 @@ declare global {
   }
 }
 
-export function getGoogleDriveAccessToken(): Promise<string> {
+let cachedAccessToken: string | null = null;
+let tokenExpiresAt = 0;
+
+export function hasGoogleDriveAccess(): boolean {
+  return (
+    cachedAccessToken !== null &&
+    Date.now() < tokenExpiresAt
+  );
+}
+
+export function getCachedGoogleDriveToken(): string | null {
+  if (!hasGoogleDriveAccess()) {
+    cachedAccessToken = null;
+    tokenExpiresAt = 0;
+    return null;
+  }
+
+  return cachedAccessToken;
+}
+
+export function connectGoogleDrive(): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!window.google) {
-      reject(new Error("Google authentication has not loaded yet."));
+      reject(
+        new Error(
+          "Google authentication has not loaded yet. Refresh the page and try again."
+        )
+      );
       return;
     }
 
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: GOOGLE_DRIVE_SCOPE,
+    const tokenClient =
+      window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: GOOGLE_DRIVE_SCOPE,
 
-      callback: (response) => {
-        if (response.error) {
-          reject(new Error(response.error));
-          return;
-        }
+        callback: (response) => {
+          if (response.error) {
+            reject(new Error(response.error));
+            return;
+          }
 
-        if (!response.access_token) {
-          reject(new Error("Google did not return an access token."));
-          return;
-        }
+          if (!response.access_token) {
+            reject(
+              new Error(
+                "Google did not return an access token."
+              )
+            );
+            return;
+          }
 
-        resolve(response.access_token);
-      },
-    });
+          cachedAccessToken = response.access_token;
+
+          const expiresIn =
+            response.expires_in ?? 3600;
+
+          tokenExpiresAt =
+            Date.now() + (expiresIn - 60) * 1000;
+
+          resolve(response.access_token);
+        },
+      });
 
     tokenClient.requestAccessToken({
       prompt: "consent",
@@ -107,7 +145,10 @@ export async function uploadPdfToGoogleDrive(
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(`Google Drive upload failed: ${message}`);
+
+    throw new Error(
+      `Google Drive upload failed: ${message}`
+    );
   }
 
   return (await response.json()) as DriveUploadResult;
@@ -134,6 +175,7 @@ export async function makeDriveFileViewable(
 
   if (!response.ok) {
     const message = await response.text();
+
     throw new Error(
       `Could not make the uploaded PDF viewable: ${message}`
     );
