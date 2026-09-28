@@ -319,6 +319,7 @@ if (loadedSubjects.length > 0) {
     }
 
     const result = await response.json();
+    console.log("SAVE RESULT:", result);
     console.log("Google response data:", result);
 
     if (!result.success) {

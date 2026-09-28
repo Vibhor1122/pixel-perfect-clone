@@ -79,6 +79,7 @@ async function loadAttendance() {
     }
 
     const studentId = profile.college_id || user.id;
+    console.log("Current student ID:", studentId);
 
     // Read attendance from Google Sheet
     const response = await fetch(ATTENDANCE_API_URL);
@@ -88,6 +89,7 @@ async function loadAttendance() {
     }
 
     const result = await response.json();
+    console.log("Attendance sheet response:", result);
 
     if (!result.success) {
       throw new Error(
@@ -96,12 +98,16 @@ async function loadAttendance() {
     }
 
     // Keep only this student's attendance
-    const myRecords = (result.records ?? []).filter(
-      (record: {
-        studentId: string;
-      }) => String(record.studentId) === String(studentId)
-    );
+   const normalizeStudentId = (value: unknown) =>
+  String(value ?? "").replace(/^0+/, "");
 
+const myRecords = (result.records ?? []).filter(
+  (record: {
+    studentId: string;
+  }) =>
+    normalizeStudentId(record.studentId) ===
+    normalizeStudentId(studentId)
+);
     // Group the student's records by subject
     const subjectMap = new Map<
       string,

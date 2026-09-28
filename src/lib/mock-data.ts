@@ -9,8 +9,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   student: "Student",
 };
 
-export const COLLEGE_NAME = "Kestrel University";
-export const APP_NAME = "Kestrel Campus";
+export const COLLEGE_NAME = "Campusly";
+export const APP_NAME = "Campusly";
 
 export type AnnouncementKind =
   | "holiday"
@@ -206,7 +206,7 @@ export function getAnnouncements(today = new Date()): Announcement[] {
   const offsets = [0, 0, -1, 2, 5];
   return ANN_BASE.map((a, i) => {
     const d = new Date(today);
-    d.setDate(d.getDate() + offsets[i]);
+    d.setDate(d.getDate() + offsets[i]!);
     return { ...a, date: iso(d) };
   });
 }
@@ -277,7 +277,7 @@ export function getSessionsForDate(date: string): ClassSession[] {
   if (day === 0) return [];
   const picks =
     day % 2 === 0 ? [3, 4, 1] : day === 1 ? [0, 1, 2] : [0, 2, 4];
-  return picks.map((p, i) => ({ ...SESSION_TEMPLATES[p], id: `${date}-${i}` }));
+  return picks.map((p, i) => ({ ...SESSION_TEMPLATES[p]!, id: `${date}-${i}` }));
 }
 
 export function hasContent(date: string): boolean {
